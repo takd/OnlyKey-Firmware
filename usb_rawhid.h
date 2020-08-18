@@ -104,102 +104,44 @@
  * SOFTWARE.
  */
 
-#ifndef _usb_dev_h_
-#define _usb_dev_h_
 
-#define USB_DESC_LIST_DEFINE
+#ifndef USBrawhid_h_
+#define USBrawhid_h_
+
 #include "usb_desc.h"
 
-#if F_CPU >= 20000000 && !defined(USB_DISABLED)
+#if defined(RAWHID_INTERFACE)
 
-// This header is NOT meant to be included when compiling
-// user sketches in Arduino.  The low-level functions
-// provided by usb_dev.c are meant to be called only by
-// code which provides higher-level interfaces to the user.
+#include <inttypes.h>
 
-#include "usb_mem.h"
-
+// C language implementation
 #ifdef __cplusplus
 extern "C" {
 #endif
+int usb_rawhid_recv(void *buffer, uint32_t timeout);
+int usb_rawhid_available(void);
+int usb_rawhid_send(const void *buffer, uint32_t timeout);
+int usb_rawhid_send2(const void *buffer, uint32_t timeout);
+#ifdef __cplusplus
+}
+#endif
 
-extern uint8_t setBuffer[9];
-extern uint8_t getBuffer[9];
-extern uint8_t keyboard_buffer[80];
 
-extern void wipe_usb_buffer();
-void usb_init(void);
-void usb_init_serialnumber(void);
-void usb_isr(void);
-usb_packet_t *usb_rx(uint32_t endpoint);
-uint32_t usb_tx_byte_count(uint32_t endpoint);
-uint32_t usb_tx_packet_count(uint32_t endpoint);
-void usb_tx(uint32_t endpoint, usb_packet_t *packet);
-void usb_tx_isr(uint32_t endpoint, usb_packet_t *packet);
-
-extern volatile uint8_t usb_configuration;
-
-extern uint16_t usb_rx_byte_count_data[NUM_ENDPOINTS];
-static inline uint32_t usb_rx_byte_count(uint32_t endpoint) __attribute__((always_inline));
-static inline uint32_t usb_rx_byte_count(uint32_t endpoint)
+// C++ interface
+#ifdef __cplusplus
+class usb_rawhid_class
 {
-        endpoint--;
-        if (endpoint >= NUM_ENDPOINTS) return 0;
-        return usb_rx_byte_count_data[endpoint];
-}
+public:
+	int available(void) {return usb_rawhid_available(); }
+	int recv(void *buffer, uint16_t timeout) { return usb_rawhid_recv(buffer, timeout); }
+	int send(const void *buffer, uint16_t timeout) { return usb_rawhid_send(buffer, timeout); }
+	int send2(const void *buffer, uint16_t timeout) { return usb_rawhid_send2(buffer, timeout); }
+};
 
-#ifdef CDC_DATA_INTERFACE
-extern uint32_t usb_cdc_line_coding[2];
-extern volatile uint32_t usb_cdc_line_rtsdtr_millis;
-extern volatile uint32_t systick_millis_count;
-extern volatile uint8_t usb_cdc_line_rtsdtr;
-extern volatile uint8_t usb_cdc_transmit_flush_timer;
-extern void usb_serial_flush_callback(void);
-#endif
+extern usb_rawhid_class RawHID;
 
-#ifdef SEREMU_INTERFACE
-extern volatile uint8_t usb_seremu_transmit_flush_timer;
-extern void usb_seremu_flush_callback(void);
-#endif
+#endif // __cplusplus
 
-#ifdef KEYBOARD_INTERFACE
-extern uint8_t keyboard_modifier_keys;
-extern uint8_t keyboard_keys[6];
-extern uint8_t keyboard_protocol;
-extern uint8_t keyboard_idle_config;
-extern uint8_t keyboard_idle_count;
-extern volatile uint8_t keyboard_leds;
-#endif
+#endif // RAWHID_INTERFACE
 
-#ifdef MIDI_INTERFACE
-extern void usb_midi_flush_output(void);
-#endif
-
-#ifdef FLIGHTSIM_INTERFACE
-extern void usb_flightsim_flush_callback(void);
-#endif
-
-
-
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#else // F_CPU < 20000000
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void usb_init(void);
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#endif // F_CPU
-
-#endif
+#endif // USBrawhid_h_

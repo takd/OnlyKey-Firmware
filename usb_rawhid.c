@@ -104,102 +104,93 @@
  * SOFTWARE.
  */
 
-#ifndef _usb_dev_h_
-#define _usb_dev_h_
+#include "usb_dev.h"
+#include "usb_rawhid.h"
+#include "core_pins.h" // for yield(), millis()
+#include <string.h>    // for memcpy()
+//#include "HardwareSerial.h"
 
-#define USB_DESC_LIST_DEFINE
-#include "usb_desc.h"
+#ifdef RAWHID_INTERFACE // defined by usb_dev.h -> usb_desc.h
+#if F_CPU >= 20000000
 
-#if F_CPU >= 20000000 && !defined(USB_DISABLED)
 
-// This header is NOT meant to be included when compiling
-// user sketches in Arduino.  The low-level functions
-// provided by usb_dev.c are meant to be called only by
-// code which provides higher-level interfaces to the user.
-
-#include "usb_mem.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern uint8_t setBuffer[9];
-extern uint8_t getBuffer[9];
-extern uint8_t keyboard_buffer[80];
-
-extern void wipe_usb_buffer();
-void usb_init(void);
-void usb_init_serialnumber(void);
-void usb_isr(void);
-usb_packet_t *usb_rx(uint32_t endpoint);
-uint32_t usb_tx_byte_count(uint32_t endpoint);
-uint32_t usb_tx_packet_count(uint32_t endpoint);
-void usb_tx(uint32_t endpoint, usb_packet_t *packet);
-void usb_tx_isr(uint32_t endpoint, usb_packet_t *packet);
-
-extern volatile uint8_t usb_configuration;
-
-extern uint16_t usb_rx_byte_count_data[NUM_ENDPOINTS];
-static inline uint32_t usb_rx_byte_count(uint32_t endpoint) __attribute__((always_inline));
-static inline uint32_t usb_rx_byte_count(uint32_t endpoint)
+int usb_rawhid_recv(void *buffer, uint32_t timeout)
 {
-        endpoint--;
-        if (endpoint >= NUM_ENDPOINTS) return 0;
-        return usb_rx_byte_count_data[endpoint];
+	usb_packet_t *rx_packet;
+	uint32_t begin = millis();
+	uint8_t useinterface = 0;
+
+	while (1) {
+		if (!usb_configuration) return -1;
+		rx_packet = usb_rx(RAWHID_RX_ENDPOINT);
+		if (rx_packet) {
+			useinterface=1;
+			break;
+		}
+		rx_packet = usb_rx(RAWHID_RX_ENDPOINT2);
+		if (rx_packet) {
+			useinterface=2;
+			break;
+		}
+		if (millis() - begin > timeout || !timeout) return 0;
+		yield();
+	}
+	memcpy(buffer, rx_packet->buf, RAWHID_RX_SIZE);
+	usb_free(rx_packet);
+	return useinterface;
 }
 
-#ifdef CDC_DATA_INTERFACE
-extern uint32_t usb_cdc_line_coding[2];
-extern volatile uint32_t usb_cdc_line_rtsdtr_millis;
-extern volatile uint32_t systick_millis_count;
-extern volatile uint8_t usb_cdc_line_rtsdtr;
-extern volatile uint8_t usb_cdc_transmit_flush_timer;
-extern void usb_serial_flush_callback(void);
-#endif
+int usb_rawhid_available(void)
+{
+	uint32_t count;
 
-#ifdef SEREMU_INTERFACE
-extern volatile uint8_t usb_seremu_transmit_flush_timer;
-extern void usb_seremu_flush_callback(void);
-#endif
-
-#ifdef KEYBOARD_INTERFACE
-extern uint8_t keyboard_modifier_keys;
-extern uint8_t keyboard_keys[6];
-extern uint8_t keyboard_protocol;
-extern uint8_t keyboard_idle_config;
-extern uint8_t keyboard_idle_count;
-extern volatile uint8_t keyboard_leds;
-#endif
-
-#ifdef MIDI_INTERFACE
-extern void usb_midi_flush_output(void);
-#endif
-
-#ifdef FLIGHTSIM_INTERFACE
-extern void usb_flightsim_flush_callback(void);
-#endif
-
-
-
-
-
-#ifdef __cplusplus
+	if (!usb_configuration) return 0;
+	count = usb_rx_byte_count(RAWHID_RX_ENDPOINT);
+	return count;
 }
-#endif
 
-#else // F_CPU < 20000000
+// Maximum number of transmit packets to queue so we don't starve other endpoints for memory
+#define TX_PACKET_LIMIT 4
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int usb_rawhid_send(const void *buffer, uint32_t timeout)
+{
+	usb_packet_t *tx_packet;
+	uint32_t begin = millis();
 
-void usb_init(void);
-
-#ifdef __cplusplus
+		while (1) {
+			if (!usb_configuration) return -1;
+			if (usb_tx_packet_count(RAWHID_TX_ENDPOINT) < TX_PACKET_LIMIT) {
+				tx_packet = usb_malloc();
+				if (tx_packet) break;
+			}
+			if (millis() - begin > timeout) return 0;
+			yield();
+		}
+		memcpy(tx_packet->buf, buffer, RAWHID_TX_SIZE);
+		tx_packet->len = RAWHID_TX_SIZE;
+		usb_tx(RAWHID_TX_ENDPOINT, tx_packet);
+	return RAWHID_TX_SIZE;
 }
-#endif
 
+int usb_rawhid_send2(const void *buffer, uint32_t timeout)
+{
+	usb_packet_t *tx_packet;
+	uint32_t begin = millis();
+
+	while (1) {
+		if (!usb_configuration) return -1;
+		if (usb_tx_packet_count(RAWHID_TX_ENDPOINT2) < TX_PACKET_LIMIT) {
+			tx_packet = usb_malloc();
+			if (tx_packet) break;
+		}
+		if (millis() - begin > timeout) return 0;
+		yield();
+	}
+	memcpy(tx_packet->buf, buffer, RAWHID_TX_SIZE);
+	tx_packet->len = RAWHID_TX_SIZE;
+	usb_tx(RAWHID_TX_ENDPOINT2, tx_packet);
+	return RAWHID_TX_SIZE;
+}
 
 #endif // F_CPU
-
-#endif
+#endif // RAWHID_INTERFACE

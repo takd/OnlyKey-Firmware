@@ -6,7 +6,7 @@ This is the official firmware for **OnlyKey**
 
 OnlyKey can be purchased here: [OnlyKey order](http://www.crp.to/p/)
 
-## Geting Started
+## Getting Started
 
 Just getting started with OnlyKey?
 
@@ -15,14 +15,6 @@ Just getting started with OnlyKey?
 ## About
 
 The firmware is the software that runs on the OnlyKey itself. In order to load firmware follow the instructions in the [User's Guide here](https://docs.crp.to/usersguide.html#loading-onlykey-firmware)
-
-There are two available editions of the OnlyKey firmware:
-
-**OnlyKey Standard Edition** The full featured OnlyKey firmware.
-
-**OnlyKey International Travel Edition** The encryption free OnlyKey firmware (ships globally).
-
-More information on the difference between the two editions is available [here](https://docs.crp.to/features.html#plausible-deniability-international-travel-edition-and-standard-edition-of-firmware)
 
 ## Development
 
